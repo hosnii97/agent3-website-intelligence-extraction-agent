@@ -1,0 +1,24 @@
+# Agent 3 — Website Intelligence Extraction Agent
+# Core dependencies referenced by the module wiring (see Agent3_Architecture.md).
+# Pin exact versions once each mission's implementation lands.
+
+# Data contracts / validation (ai/schemas.py, api/schemas.py)
+pydantic
+
+# Crawler (fetcher.py, link_discovery.py)
+requests
+beautifulsoup4
+
+# API layer (api/routes.py)
+fastapi
+uvicorn
+
+# AI / LLM extraction (ai/extractor.py)
+anthropic
+
+# RAG add-on (ai/rag/*)
+numpy
+faiss-cpu
+
+# Tests
+pytest
