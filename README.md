@@ -30,6 +30,14 @@ https://ahed10ah.atlassian.net/jira/software/projects/A3WIE/boards/35?filter=&gr
 
 The full system design lives in [`Agent3_Architecture.md`](./Agent3_Architecture.md).
 
+## 🔌 Input / Output Contract
+
+Agent 1 (or any other caller) should integrate against
+[`Agent3_API_Contract.md`](./Agent3_API_Contract.md) — it defines the
+exact request/response JSON shapes, required vs. optional fields, and
+the error response format, so callers never have to guess a field name
+from the source code.
+
 Given a `companyId` + `websiteUrl`, the pipeline: normalizes the URL → fetches
 the homepage → discovers internal links → fetches/classifies/extracts each page →
 chunks the text → runs grounded AI structured extraction → persists the result →
