@@ -345,3 +345,8 @@ def classify_page(url: str, html: str | None = None) -> PageType:
     html_signals = _extract_html_signals(html)
     has_readable_html_signal = any(html_signals.values())
     return PageType.GENERAL if has_readable_html_signal else PageType.UNKNOWN
+
+"""
+I'm Keeping just in case we might need it later.
+from agent3.common import config
+from agent3.common import logging as log"""
