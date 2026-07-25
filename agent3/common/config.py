@@ -10,3 +10,9 @@ Reference (see Agent3_Architecture.md §9):
 """
 
 import os
+
+# Mission 7 may return at most 15 internal pages per company.
+#
+# The assignment recommends a system-controlled limit between 10 and 20.
+# The value is fixed by the application and is not accepted from the user.
+MAX_PAGES_PER_SCAN = 15
