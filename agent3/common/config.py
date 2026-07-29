@@ -18,6 +18,9 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+# --- URL normalization (Mission 5) ---
+MAX_URL_LENGTH = _env_int("AGENT3_MAX_URL_LENGTH", 2048)
+
 # --- Crawler / fetching (Missions 6-7) ---
 REQUEST_TIMEOUT_SECONDS = _env_int("AGENT3_REQUEST_TIMEOUT_SECONDS", 15)
 MAX_PAGES_PER_SCAN = _env_int("AGENT3_MAX_PAGES_PER_SCAN", 15)
