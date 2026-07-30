@@ -244,3 +244,31 @@ def test_does_not_return_the_homepage_again():
     links = link_discovery.discover_links(homepage)
 
     assert links == ["https://example.com/about"]
+
+def test_prioritizes_cookie_policy_page():
+    """A cookie-policy page should be treated as a relevant page."""
+    homepage = create_homepage(
+        """
+        <html>
+            <body>
+                <a href="/ordinary-page">
+                    Ordinary Page
+                </a>
+
+                <a href="/cookie-policy">
+                    Cookie Policy
+                </a>
+            </body>
+        </html>
+        """
+    )
+
+    links = link_discovery.discover_links(homepage)
+
+    # Both links are internal and should be discovered.
+    assert "https://example.com/cookie-policy" in links
+    assert "https://example.com/ordinary-page" in links
+
+    # Cookie policy has a relevance score of 50.
+    # The ordinary page has a score of zero.
+    assert links[0] == "https://example.com/cookie-policy"

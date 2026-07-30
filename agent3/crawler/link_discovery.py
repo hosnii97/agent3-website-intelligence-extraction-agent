@@ -39,6 +39,7 @@ RELEVANT_KEYWORDS = {
     "terms": 50,
     "privacy": 50,
     "legal": 50,
+    "cookie-policy": 50,
     "cookies": 50,
     "refund": 50,
 }
