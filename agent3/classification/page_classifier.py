@@ -170,7 +170,7 @@ URL_MATCH_WEIGHT: Final[int] = 4
 TITLE_MATCH_WEIGHT: Final[int] = 3
 HEADING_MATCH_WEIGHT: Final[int] = 2
 META_MATCH_WEIGHT: Final[int] = 1
-
+CONTENT_MATCH_WEIGHT: Final[int] = 1
 
 def _normalize_text(value: str) -> str:
     """
@@ -226,6 +226,7 @@ def _extract_html_signals(html: str | None) -> dict[str, str]:
     signals = {
         "title": "",
         "meta_description": "",
+        "content": "",
         "headings": "",
     }
 
@@ -257,6 +258,9 @@ def _extract_html_signals(html: str | None) -> dict[str, str]:
             headings.append(text)
 
     signals["headings"] = _normalize_text(" ".join(headings))
+    if soup.body:
+        body_text = soup.body.get_text(" ", strip=True)
+        signals["content"] = _normalize_text(body_text)
     return signals
 
 
@@ -289,7 +293,8 @@ def _calculate_html_scores(html: str | None) -> dict[PageType, int]:
 
             if _contains_keyword(html_signals["meta_description"], keyword):
                 scores[page_type] += META_MATCH_WEIGHT
-
+            if _contains_keyword(html_signals["content"], keyword):
+                scores[page_type] += CONTENT_MATCH_WEIGHT
     return scores
 
 

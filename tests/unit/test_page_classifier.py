@@ -44,7 +44,19 @@ def test_classifies_from_html_title() -> None:
     """
     assert classify_page("https://example.com/page/123", html) == PageType.PRICING
 
+def test_classifies_from_body_content() -> None:
+    html = """
+    <html>
+      <head><title>Acme</title></head>
+      <body>
+        <p>Compare our pricing plans and subscription packages.</p>
+      </body>
+    </html>
+    """
 
+    result = classify_page("https://example.com/page/123", html)
+    assert result == PageType.PRICING
+    
 def test_classifies_from_meta_description() -> None:
     html = """
     <html>
