@@ -95,8 +95,7 @@ def test_chunk_page_large_text_produces_three_chunks():
     page = _page(_make_text(num_sentences=150))
     chunks = chunker.chunk_page(page, "company_123")
     for c in chunks:
-        print(c.text)
-        print("--------------------------------")
+     
     
     assert len(chunks) == 3
     assert [c.chunk_index for c in chunks] == [0, 1, 2]  # sequential from 0
