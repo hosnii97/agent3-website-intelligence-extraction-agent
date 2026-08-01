@@ -18,7 +18,6 @@ from agent3.common import logging as log
 from agent3.crawler.models import FetchResult, FetchStatus
 
 
-
 @dataclass
 class ExtractedPage:
     """Structured content extracted from one fetched webpage.
