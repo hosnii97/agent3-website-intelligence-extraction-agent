@@ -1,6 +1,6 @@
 """Mission 11 — unit tests for ai/extractor.py.
 
-These tests run FULLY OFFLINE: a `FakeLLMClient` stands in for the Anthropic
+These tests run FULLY OFFLINE: a `FakeLLMClient` stands in for the OpenAI
 client (injected via the `client=` argument), so no API key and no network are
 ever needed. Each test scripts the exact reply(ies) the fake returns, which
 lets us assert the extractor's behavior on every branch of Architecture §10:
@@ -35,34 +35,42 @@ from agent3.extraction.chunker import Chunk
 # --- test doubles -----------------------------------------------------------
 
 
-class _TextBlock:
-    """Mimics an Anthropic content block (has a `.text` attribute)."""
+class _Message:
+    """Mimics an OpenAI choice message (has a `.content` string)."""
 
     def __init__(self, text: str) -> None:
-        self.text = text
+        self.content = text
+
+
+class _Choice:
+    """Mimics an OpenAI response choice (has a `.message`)."""
+
+    def __init__(self, text: str) -> None:
+        self.message = _Message(text)
 
 
 class _Response:
-    """Mimics an Anthropic message response (`.content` = list of blocks)."""
+    """Mimics an OpenAI chat completion (`.choices` = list of choices)."""
 
     def __init__(self, text: str) -> None:
-        self.content = [_TextBlock(text)]
+        self.choices = [_Choice(text)]
 
 
 class FakeLLMClient:
-    """Scriptable stand-in for `anthropic.Anthropic()`.
+    """Scriptable stand-in for `openai.OpenAI()`.
 
-    Give it a list of replies (strings) or exceptions; each `messages.create`
-    call pops the next one. A string is returned as a response; an exception
-    instance is raised (to simulate a network/SDK failure). Records every call
-    so tests can assert how many turns happened and what was sent.
+    Give it a list of replies (strings) or exceptions; each
+    `chat.completions.create` call pops the next one. A string is returned as a
+    response; an exception instance is raised (to simulate a network/SDK
+    failure). Records every call so tests can assert how many turns happened
+    and what was sent.
     """
 
     def __init__(self, replies):
         self._replies = list(replies)
         self.calls = []
 
-    class _Messages:
+    class _Completions:
         def __init__(self, outer: "FakeLLMClient") -> None:
             self._outer = outer
 
@@ -73,9 +81,13 @@ class FakeLLMClient:
                 raise reply
             return _Response(reply)
 
+    class _Chat:
+        def __init__(self, outer: "FakeLLMClient") -> None:
+            self.completions = FakeLLMClient._Completions(outer)
+
     @property
-    def messages(self) -> "FakeLLMClient._Messages":
-        return FakeLLMClient._Messages(self)
+    def chat(self) -> "FakeLLMClient._Chat":
+        return FakeLLMClient._Chat(self)
 
 
 # --- fixtures / builders ----------------------------------------------------
@@ -136,6 +148,19 @@ def _json(payload: dict) -> str:
     return json.dumps(payload)
 
 
+def _user_content(call: dict) -> str:
+    """Return the user-turn text from a recorded `create(...)` call.
+
+    OpenAI takes a list of role-tagged messages ([system, user]); the context
+    and the strict retry reminder both live in the *user* message, so tests
+    that inspect what the model saw should look there, not at the system turn.
+    """
+    for message in call["messages"]:
+        if message.get("role") == "user":
+            return message["content"]
+    raise AssertionError("no user message was sent to the model")
+
+
 # --- happy path -------------------------------------------------------------
 
 
@@ -163,7 +188,7 @@ def test_context_sent_to_model_labels_each_source_url():
     client = FakeLLMClient([_json(_valid_payload())])
     extractor.extract_structured_intelligence(_default_chunks(), client=client)
 
-    user_msg = client.calls[0]["messages"][0]["content"]
+    user_msg = _user_content(client.calls[0])
     # Grounding starts by making the source visible to the model.
     assert "https://acme.com" in user_msg
     assert "https://acme.com/pricing" in user_msg
@@ -201,8 +226,8 @@ def test_retry_prompt_is_stricter_than_first():
     client = FakeLLMClient(["nope", _json(_valid_payload())])
     extractor.extract_structured_intelligence(_default_chunks(), client=client)
 
-    first = client.calls[0]["messages"][0]["content"]
-    second = client.calls[1]["messages"][0]["content"]
+    first = _user_content(client.calls[0])
+    second = _user_content(client.calls[1])
     assert len(second) > len(first)
     assert "could not be parsed" in second
 
@@ -335,17 +360,21 @@ def test_none_client_returns_none_gracefully(monkeypatch):
 
 
 def test_bare_string_response_is_supported():
-    # A fake that returns a plain string (not a .content object) should work,
+    # A fake that returns a plain string (not a .choices object) should work,
     # exercising the string branch of _text_from_response.
     class StringClient(FakeLLMClient):
-        class _Messages(FakeLLMClient._Messages):
+        class _Completions(FakeLLMClient._Completions):
             def create(self, **kwargs):
                 self._outer.calls.append(kwargs)
                 return self._outer._replies.pop(0)  # raw string, not _Response
 
+        class _Chat:
+            def __init__(self, outer):
+                self.completions = StringClient._Completions(outer)
+
         @property
-        def messages(self):
-            return StringClient._Messages(self)
+        def chat(self):
+            return StringClient._Chat(self)
 
     result = extractor.extract_structured_intelligence(
         _default_chunks(), client=StringClient([_json(_valid_payload())])

@@ -30,7 +30,7 @@ Design choices worth knowing:
 
 * **The LLM client is injected.** `extract_structured_intelligence(chunks,
   client=...)` takes an optional client so tests run fully offline with a fake,
-  and production passes nothing (a real Anthropic client is built lazily).
+  and production passes nothing (a real OpenAI client is built lazily).
 * **RAG is not required here.** Architecture §10/§13 make retrieval an additive
   layer; the fixed pipeline works standalone. Chunk selection by page type is
   the lightweight stand-in, so this module has no numpy/faiss dependency and
@@ -123,9 +123,9 @@ def extract_structured_intelligence(
     Args:
         chunks: All chunks produced for one company's scan (Mission 10 output).
             An empty list yields `None` (nothing to extract from).
-        client: An optional object exposing `messages.create(...)` like the
-            Anthropic SDK. Injected in tests so no API key or network is needed;
-            when omitted, a real Anthropic client is built lazily.
+        client: An optional object exposing `chat.completions.create(...)` like
+            the OpenAI SDK. Injected in tests so no API key or network is needed;
+            when omitted, a real OpenAI client is built lazily.
 
     Returns:
         A validated, source-grounded `WebsiteIntelligence`, or `None` if there
@@ -294,63 +294,72 @@ def _build_context(chunks: Iterable[Chunk]) -> str:
 
 
 def _build_default_client() -> Optional[Any]:
-    """Build a real Anthropic client, or return None if that's not possible.
+    """Build a real OpenAI client, or return None if that's not possible.
 
     Constructed lazily (and defensively) so importing this module never
-    requires the `anthropic` package or an API key — only actually running an
+    requires the `openai` package or an API key — only actually running an
     extraction does. A missing dependency/key degrades to `None` (logged),
     which the caller turns into a `None` result rather than a crash.
     """
     try:
-        import anthropic
+        import openai
     except ImportError:
-        log.error("ai_client_unavailable", reason="anthropic_package_not_installed")
+        log.error("ai_client_unavailable", reason="openai_package_not_installed")
         return None
     try:
-        return anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from the environment
+        return openai.OpenAI()  # reads OPENAI_API_KEY from the environment
     except Exception as exc:  # e.g. no API key configured
         log.error("ai_client_unavailable", reason=str(exc))
         return None
 
 
 def _complete(client: Any, system_prompt: str, user_prompt: str) -> str:
-    """Send one message to the model and return its text.
+    """Send one request to the model and return its text.
 
     Uses temperature 0 (from config) — this is extraction, not writing, so we
-    want the same input to give the same output.
+    want the same input to give the same output. `response_format` asks the
+    OpenAI model for a JSON object directly, which pairs with the schema
+    validation downstream (belt and suspenders on "valid JSON only").
     """
-    response = client.messages.create(
+    response = client.chat.completions.create(
         model=config.LLM_MODEL,
         max_tokens=config.LLM_MAX_OUTPUT_TOKENS,
         temperature=config.LLM_TEMPERATURE,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_prompt}],
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
     )
     return _text_from_response(response)
 
 
 def _text_from_response(response: Any) -> str:
-    """Pull the plain text out of an Anthropic-style response.
+    """Pull the plain text out of an OpenAI-style response.
 
     Tolerant of shapes so tests can pass a lightweight fake: accepts a bare
-    string, an object with a `.content` list of text blocks (real SDK), or a
-    list of dicts with a "text" key.
+    string, or an object with `.choices[0].message.content` (real OpenAI SDK),
+    or the equivalent nested dicts.
     """
     if isinstance(response, str):
         return response
 
-    content = getattr(response, "content", None)
-    if content is None:
+    choices = getattr(response, "choices", None)
+    if choices is None and isinstance(response, dict):
+        choices = response.get("choices")
+    if not choices:
         return str(response)
 
-    parts: list[str] = []
-    for block in content:
-        text = getattr(block, "text", None)
-        if text is None and isinstance(block, dict):
-            text = block.get("text")
-        if text:
-            parts.append(text)
-    return "".join(parts)
+    first = choices[0]
+    message = getattr(first, "message", None)
+    if message is None and isinstance(first, dict):
+        message = first.get("message")
+
+    content = getattr(message, "content", None)
+    if content is None and isinstance(message, dict):
+        content = message.get("content")
+
+    return content or ""
 
 
 # --- parsing & sanitizing ---------------------------------------------------
