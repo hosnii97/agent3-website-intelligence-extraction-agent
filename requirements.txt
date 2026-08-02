@@ -13,13 +13,10 @@ beautifulsoup4
 fastapi
 uvicorn
 
-# AI / LLM extraction (ai/extractor.py — Mission 11)
+# AI / LLM extraction (ai/extractor.py)
 anthropic
 
-# RAG add-on (ai/rag/*) — OPTIONAL. Mission 11's fixed pipeline runs without
-# these; they're only needed if you enable the semantic-retrieval layer
-# (Agent3_Architecture.md §11). The extractor selects chunks by page-type
-# priority when RAG isn't wired up, so it has no hard numpy/faiss dependency.
+# RAG add-on (ai/rag/*)
 numpy
 faiss-cpu
 
