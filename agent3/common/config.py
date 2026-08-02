@@ -35,3 +35,9 @@ CHUNK_OVERLAP_TOKENS = _env_int("AGENT3_CHUNK_OVERLAP_TOKENS", 80)
 # --- AI extraction (Mission 11) ---
 LLM_MODEL = os.environ.get("AGENT3_LLM_MODEL", "claude-sonnet-4-6")
 LLM_TEMPERATURE = 0.0  # deterministic structured extraction
+LLM_MAX_OUTPUT_TOKENS = _env_int("AGENT3_LLM_MAX_OUTPUT_TOKENS", 2048)
+# Upper bound on the source text we pack into one extraction prompt. Chunk
+# selection stops once this many characters have been gathered, so a large
+# site can't blow the model's context window (or the bill). ~24k chars is
+# comfortably within a small-model context and enough for 10-20 pages.
+LLM_MAX_CONTEXT_CHARS = _env_int("AGENT3_LLM_MAX_CONTEXT_CHARS", 24_000)
