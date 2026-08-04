@@ -14,7 +14,7 @@ fastapi
 uvicorn
 
 # AI / LLM extraction (ai/extractor.py)
-anthropic
+openai
 
 # RAG add-on (ai/rag/*)
 numpy
